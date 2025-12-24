@@ -1,2 +1,7 @@
-mediapipe=0.10.21
-pyautogui 
+fastapi
+uvicorn
+websockets
+opencv-python
+mediapipe
+numpy
+pyautogui

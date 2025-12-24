@@ -1,10 +1,12 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import Scene from '../components/3d/Scene';
 import TopBar from '../components/layout/TopBar';
 import LeftSidebar from '../components/layout/LeftSidebar';
 import RightSidebar from '../components/layout/RightSidebar';
 import AddFeedback from '../components/feedback/AddFeedback';
+import { GestureIndicator } from '../components/ui/GestureIndicator';
+import { useHandGesture } from '../hooks/useHandGesture';
 import { toast } from 'sonner';
 
 interface Gift {
@@ -43,6 +45,66 @@ const Index = () => {
   const [aiActive, setAiActive] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackType, setFeedbackType] = useState<'gift' | 'card' | null>(null);
+  const [gestureEnabled, setGestureEnabled] = useState(false);
+  const [sceneRotation, setSceneRotation] = useState({ x: 0, y: 0 });
+  const isDraggingRef = useRef(false);
+
+  // Hand gesture control integration
+  const {
+    isConnected,
+    isHandDetected,
+    lastGesture,
+    cursorPosition,
+  } = useHandGesture({
+    enabled: gestureEnabled,
+    debug: true,
+    callbacks: {
+      onClick: () => {
+        // Pinch gesture - add gift or card based on cursor position
+        if (cursorPosition.x < 0.5) {
+          handleAddGift();
+        } else {
+          handleAddCard();
+        }
+      },
+      onDragStart: () => {
+        isDraggingRef.current = true;
+        toast.info('Nắm tay để xoay cây đào', { duration: 1000 });
+      },
+      onDragging: (x: number, y: number) => {
+        // Update scene rotation based on hand movement
+        if (isDraggingRef.current) {
+          setSceneRotation({
+            x: (y - 0.5) * Math.PI,
+            y: (x - 0.5) * Math.PI * 2,
+          });
+        }
+      },
+      onDragEnd: () => {
+        isDraggingRef.current = false;
+      },
+      onRotateLeft: () => {
+        setSceneRotation(prev => ({
+          ...prev,
+          y: prev.y - Math.PI / 2  // 90 degrees - larger rotation
+        }));
+        toast.success('⬅️ Xoay trái', {
+          duration: 1500,
+          description: 'Vuốt tay sang trái'
+        });
+      },
+      onRotateRight: () => {
+        setSceneRotation(prev => ({
+          ...prev,
+          y: prev.y + Math.PI / 2  // 90 degrees - larger rotation
+        }));
+        toast.success('➡️ Xoay phải', {
+          duration: 1500,
+          description: 'Vuốt tay sang phải'
+        });
+      },
+    },
+  });
 
   const getNextPosition = useCallback((currentItems: number): [number, number, number] => {
     const index = currentItems % DECORATION_POSITIONS.length;
@@ -61,19 +123,19 @@ const Index = () => {
       color: GIFT_COLORS[gifts.length % GIFT_COLORS.length],
       position: getNextPosition(gifts.length + cards.length),
     };
-    
+
     setGifts(prev => [...prev, newGift]);
     setFeedbackType('gift');
     setShowFeedback(true);
-    
+
     // Simulate AI gesture recognition
     setAiActive(true);
     setTimeout(() => setAiActive(false), 1500);
-    
+
     setTimeout(() => setShowFeedback(false), 1000);
-    
+
     toast.success('Đã treo hộp quà lên cây đào!', {
-      description: 'Kéo chuột để xoay và xem quà tặng',
+      description: 'Kéo chuột hoặc nắm tay để xoay',
     });
   }, [gifts.length, cards.length, getNextPosition]);
 
@@ -82,17 +144,17 @@ const Index = () => {
       id: `card-${Date.now()}`,
       position: getNextPosition(gifts.length + cards.length),
     };
-    
+
     setCards(prev => [...prev, newCard]);
     setFeedbackType('card');
     setShowFeedback(true);
-    
+
     // Simulate AI gesture recognition
     setAiActive(true);
     setTimeout(() => setAiActive(false), 1500);
-    
+
     setTimeout(() => setShowFeedback(false), 1000);
-    
+
     toast.success('Đã gắn thiệp chúc Tết!', {
       description: 'Lời chúc của bạn đã được treo lên cây',
     });
@@ -104,7 +166,7 @@ const Index = () => {
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Soft gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
-        
+
         {/* Floating petals - decorative */}
         {[...Array(6)].map((_, i) => (
           <motion.div
@@ -132,15 +194,15 @@ const Index = () => {
       <TopBar aiActive={aiActive} />
 
       {/* Left sidebar - Gift controls */}
-      <LeftSidebar 
-        onAddGift={handleAddGift} 
-        giftCount={gifts.length} 
+      <LeftSidebar
+        onAddGift={handleAddGift}
+        giftCount={gifts.length}
       />
 
       {/* Right sidebar - Card controls */}
-      <RightSidebar 
-        onAddCard={handleAddCard} 
-        cardCount={cards.length} 
+      <RightSidebar
+        onAddCard={handleAddCard}
+        cardCount={cards.length}
       />
 
       {/* Main 3D Canvas */}
@@ -150,8 +212,51 @@ const Index = () => {
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        <Scene gifts={gifts} cards={cards} />
+        <Scene
+          gifts={gifts}
+          cards={cards}
+          rotation={gestureEnabled ? sceneRotation : undefined}
+        />
       </motion.main>
+
+      {/* Gesture Control Indicator */}
+      {gestureEnabled && (
+        <div className="fixed top-20 right-4 z-50">
+          <GestureIndicator
+            isConnected={isConnected}
+            isHandDetected={isHandDetected}
+            lastGestureType={lastGesture?.type}
+            cursorPosition={cursorPosition}
+          />
+        </div>
+      )}
+
+      {/* Gesture Control Toggle Button */}
+      <motion.button
+        onClick={() => {
+          setGestureEnabled(!gestureEnabled);
+          if (!gestureEnabled) {
+            toast.info('Điều khiển bằng tay đã bật', {
+              description: 'Đảm bảo server Python đang chạy',
+            });
+          } else {
+            toast.info('Điều khiển bằng tay đã tắt');
+          }
+        }}
+        className={`fixed top-20 left-4 z-50 px-4 py-2 rounded-lg glass-panel shadow-soft
+          ${gestureEnabled ? 'bg-primary/20 text-primary' : 'bg-muted/50 text-muted-foreground'}
+          hover:scale-105 transition-all duration-200`}
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-2xl">👋</span>
+          <span className="text-sm font-medium">
+            {gestureEnabled ? 'Điều khiển bằng tay' : 'Bật điều khiển tay'}
+          </span>
+        </div>
+      </motion.button>
 
       {/* Add feedback animation */}
       <AddFeedback show={showFeedback} type={feedbackType} />
@@ -165,7 +270,7 @@ const Index = () => {
       >
         <div className="px-6 py-3 rounded-full glass-panel shadow-soft">
           <p className="text-sm text-muted-foreground text-center">
-            <span className="text-primary font-medium">Kéo chuột</span> để xoay cây đào • 
+            <span className="text-primary font-medium">Kéo chuột</span> để xoay cây đào •
             <span className="text-accent font-medium ml-1">Cuộn</span> để phóng to/thu nhỏ
           </p>
         </div>
