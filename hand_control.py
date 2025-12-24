@@ -1,5 +1,5 @@
-import cv2
 import mediapipe as mp
+import cv2
 import pyautogui
 import numpy as np
 import time
@@ -72,16 +72,19 @@ while True:
 
         if dist < CLICK_THRESHOLD:
             pyautogui.click()
+            print("Roate click")
             time.sleep(0.25)
 
         finger_state = fingers_up(lm)
         if finger_state == [False, False, False, False, False]:
             if not dragging:
                 pyautogui.mouseDown()
+                print("Mouse down")
                 dragging = True
         else:
             if dragging:
                 pyautogui.mouseUp()
+                print("Mouse up, drag")
                 dragging = False
 
         current_time = time.time()
@@ -98,7 +101,7 @@ while True:
 
         mp_draw.draw_landmarks(img, hand, mp_hands.HAND_CONNECTIONS)
 
-    cv2.imshow("Hand Gesture Control", img)
+    # cv2.imshow("Hand Gesture Control", img)
 
     if cv2.waitKey(1) & 0xFF == 27:
         break
