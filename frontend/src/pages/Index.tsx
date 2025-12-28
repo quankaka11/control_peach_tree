@@ -5,6 +5,7 @@ import TopBar from '../components/layout/TopBar';
 import LeftSidebar from '../components/layout/LeftSidebar';
 import RightSidebar from '../components/layout/RightSidebar';
 import AddFeedback from '../components/feedback/AddFeedback';
+import DecorationModal from '../components/ui/DecorationModal';
 import { GestureIndicator } from '../components/ui/GestureIndicator';
 import { useHandGesture } from '../hooks/useHandGesture';
 import { toast } from 'sonner';
@@ -45,6 +46,12 @@ const Index = () => {
   const [aiActive, setAiActive] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackType, setFeedbackType] = useState<'gift' | 'card' | null>(null);
+  
+  // Modal state
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState<'gift' | 'card' | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | undefined>();
+
   const [gestureEnabled, setGestureEnabled] = useState(false);
   const [sceneRotation, setSceneRotation] = useState({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
@@ -123,19 +130,19 @@ const Index = () => {
       color: GIFT_COLORS[gifts.length % GIFT_COLORS.length],
       position: getNextPosition(gifts.length + cards.length),
     };
-
+    
     setGifts(prev => [...prev, newGift]);
     setFeedbackType('gift');
     setShowFeedback(true);
-
+    
     // Simulate AI gesture recognition
     setAiActive(true);
     setTimeout(() => setAiActive(false), 1500);
-
+    
     setTimeout(() => setShowFeedback(false), 1000);
-
+    
     toast.success('Đã treo hộp quà lên cây đào!', {
-      description: 'Kéo chuột hoặc nắm tay để xoay',
+      description: 'Kéo chuột để xoay và xem quà tặng',
     });
   }, [gifts.length, cards.length, getNextPosition]);
 
@@ -144,21 +151,38 @@ const Index = () => {
       id: `card-${Date.now()}`,
       position: getNextPosition(gifts.length + cards.length),
     };
-
+    
     setCards(prev => [...prev, newCard]);
     setFeedbackType('card');
     setShowFeedback(true);
-
+    
     // Simulate AI gesture recognition
     setAiActive(true);
     setTimeout(() => setAiActive(false), 1500);
-
+    
     setTimeout(() => setShowFeedback(false), 1000);
-
+    
     toast.success('Đã gắn thiệp chúc Tết!', {
       description: 'Lời chúc của bạn đã được treo lên cây',
     });
   }, [gifts.length, cards.length, getNextPosition]);
+
+  const handleGiftClick = useCallback((id: string, color: string) => {
+    setSelectedColor(color);
+    setModalType('gift');
+    setModalOpen(true);
+  }, []);
+
+  const handleCardClick = useCallback((id: string) => {
+    setModalType('card');
+    setModalOpen(true);
+  }, []);
+
+  const handleCloseModal = useCallback(() => {
+    setModalOpen(false);
+    setModalType(null);
+    setSelectedColor(undefined);
+  }, []);
 
   return (
     <div className="relative w-full h-screen overflow-hidden bg-gradient-to-b from-peach-light via-background to-muted">
@@ -166,7 +190,7 @@ const Index = () => {
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Soft gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
-
+        
         {/* Floating petals - decorative */}
         {[...Array(6)].map((_, i) => (
           <motion.div
@@ -194,15 +218,15 @@ const Index = () => {
       <TopBar aiActive={aiActive} />
 
       {/* Left sidebar - Gift controls */}
-      <LeftSidebar
-        onAddGift={handleAddGift}
-        giftCount={gifts.length}
+      <LeftSidebar 
+        onAddGift={handleAddGift} 
+        giftCount={gifts.length} 
       />
 
       {/* Right sidebar - Card controls */}
-      <RightSidebar
-        onAddCard={handleAddCard}
-        cardCount={cards.length}
+      <RightSidebar 
+        onAddCard={handleAddCard} 
+        cardCount={cards.length} 
       />
 
       {/* Main 3D Canvas */}
@@ -212,9 +236,11 @@ const Index = () => {
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        <Scene
-          gifts={gifts}
-          cards={cards}
+        <Scene 
+          gifts={gifts} 
+          cards={cards} 
+          onGiftClick={handleGiftClick}
+          onCardClick={handleCardClick}
           rotation={gestureEnabled ? sceneRotation : undefined}
         />
       </motion.main>
@@ -270,7 +296,7 @@ const Index = () => {
       >
         <div className="px-6 py-3 rounded-full glass-panel shadow-soft">
           <p className="text-sm text-muted-foreground text-center">
-            <span className="text-primary font-medium">Kéo chuột</span> để xoay cây đào •
+            <span className="text-primary font-medium">Kéo chuột</span> để xoay cây đào • 
             <span className="text-accent font-medium ml-1">Cuộn</span> để phóng to/thu nhỏ
           </p>
         </div>
@@ -290,6 +316,14 @@ const Index = () => {
           Tết Nguyên Đán 2025 • Năm Ất Tỵ
         </p>
       </motion.div>
+
+      {/* Decoration modal */}
+      <DecorationModal
+        isOpen={modalOpen}
+        onClose={handleCloseModal}
+        type={modalType}
+        color={selectedColor}
+      />
     </div>
   );
 };

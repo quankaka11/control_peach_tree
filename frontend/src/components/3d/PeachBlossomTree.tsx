@@ -1,4 +1,4 @@
-import { useRef, useMemo } from 'react';
+import { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
@@ -179,20 +179,36 @@ interface GiftBoxProps {
   position: [number, number, number];
   color: string;
   id: string;
+  onClick?: (id: string, color: string) => void;
 }
 
-export const GiftBox3D = ({ position, color }: GiftBoxProps) => {
+export const GiftBox3D = ({ position, color, id, onClick }: GiftBoxProps) => {
   const meshRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
   
   useFrame((state) => {
     if (meshRef.current) {
       meshRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.5) * 0.1;
       meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime) * 0.03;
+      // Scale up on hover
+      const targetScale = hovered ? 1.15 : 1;
+      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
     }
   });
 
+  const handleClick = (e: any) => {
+    e.stopPropagation();
+    onClick?.(id, color);
+  };
+
   return (
-    <group ref={meshRef} position={position}>
+    <group 
+      ref={meshRef} 
+      position={position}
+      onClick={handleClick}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
+    >
       {/* String */}
       <mesh position={[0, 0.15, 0]}>
         <cylinderGeometry args={[0.005, 0.005, 0.3]} />
@@ -201,7 +217,13 @@ export const GiftBox3D = ({ position, color }: GiftBoxProps) => {
       {/* Box */}
       <mesh position={[0, 0, 0]}>
         <boxGeometry args={[0.15, 0.12, 0.15]} />
-        <meshStandardMaterial color={color} roughness={0.3} metalness={0.1} />
+        <meshStandardMaterial 
+          color={color} 
+          roughness={0.3} 
+          metalness={0.1}
+          emissive={hovered ? color : '#000000'}
+          emissiveIntensity={hovered ? 0.3 : 0}
+        />
       </mesh>
       {/* Ribbon horizontal */}
       <mesh position={[0, 0.061, 0]}>
@@ -225,20 +247,36 @@ export const GiftBox3D = ({ position, color }: GiftBoxProps) => {
 interface GreetingCard3DProps {
   position: [number, number, number];
   id: string;
+  onClick?: (id: string) => void;
 }
 
-export const GreetingCard3D = ({ position }: GreetingCard3DProps) => {
+export const GreetingCard3D = ({ position, id, onClick }: GreetingCard3DProps) => {
   const meshRef = useRef<THREE.Group>(null);
+  const [hovered, setHovered] = useState(false);
   
   useFrame((state) => {
     if (meshRef.current) {
       meshRef.current.rotation.y = Math.sin(state.clock.elapsedTime * 0.3) * 0.15;
       meshRef.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 0.8) * 0.02;
+      // Scale up on hover
+      const targetScale = hovered ? 1.15 : 1;
+      meshRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1);
     }
   });
 
+  const handleClick = (e: any) => {
+    e.stopPropagation();
+    onClick?.(id);
+  };
+
   return (
-    <group ref={meshRef} position={position}>
+    <group 
+      ref={meshRef} 
+      position={position}
+      onClick={handleClick}
+      onPointerOver={() => setHovered(true)}
+      onPointerOut={() => setHovered(false)}
+    >
       {/* String */}
       <mesh position={[0, 0.12, 0]}>
         <cylinderGeometry args={[0.003, 0.003, 0.24]} />
@@ -247,7 +285,12 @@ export const GreetingCard3D = ({ position }: GreetingCard3DProps) => {
       {/* Card */}
       <mesh position={[0, 0, 0]}>
         <boxGeometry args={[0.12, 0.16, 0.01]} />
-        <meshStandardMaterial color="#dc2626" roughness={0.5} />
+        <meshStandardMaterial 
+          color="#dc2626" 
+          roughness={0.5}
+          emissive={hovered ? '#dc2626' : '#000000'}
+          emissiveIntensity={hovered ? 0.4 : 0}
+        />
       </mesh>
       {/* Gold border */}
       <mesh position={[0, 0, 0.006]}>
@@ -294,9 +337,11 @@ const WoodenPot = () => {
 interface PeachBlossomTreeProps {
   gifts: Array<{ id: string; color: string; position: [number, number, number] }>;
   cards: Array<{ id: string; position: [number, number, number] }>;
+  onGiftClick?: (id: string, color: string) => void;
+  onCardClick?: (id: string) => void;
 }
 
-const PeachBlossomTree = ({ gifts, cards }: PeachBlossomTreeProps) => {
+const PeachBlossomTree = ({ gifts, cards, onGiftClick, onCardClick }: PeachBlossomTreeProps) => {
   const groupRef = useRef<THREE.Group>(null);
 
   // S-shaped trunk like bonsai style
@@ -548,6 +593,7 @@ const PeachBlossomTree = ({ gifts, cards }: PeachBlossomTreeProps) => {
           id={gift.id}
           position={gift.position} 
           color={gift.color}
+          onClick={onGiftClick}
         />
       ))}
 
@@ -557,6 +603,7 @@ const PeachBlossomTree = ({ gifts, cards }: PeachBlossomTreeProps) => {
           key={card.id} 
           id={card.id}
           position={card.position}
+          onClick={onCardClick}
         />
       ))}
     </group>
