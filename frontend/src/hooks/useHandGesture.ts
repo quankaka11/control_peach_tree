@@ -6,8 +6,8 @@ export interface GestureData {
     x: number;
     y: number;
   };
-  direction?: 'left' | 'right';
-  action?: 'pinch' | 'rotate_left' | 'rotate_right';
+  direction?: 'left' | 'right' | 'up' | 'down';
+  action?: 'pinch' | 'rotate_left' | 'rotate_right' | 'rotate_up' | 'rotate_down';
   timestamp: number;
 }
 
@@ -19,7 +19,9 @@ export interface GestureCallbacks {
   onDragEnd?: () => void;
   onRotateLeft?: () => void;
   onRotateRight?: () => void;
-  onSwipe?: (direction: 'left' | 'right') => void;
+  onRotateUp?: () => void;
+  onRotateDown?: () => void;
+  onSwipe?: (direction: 'left' | 'right' | 'up' | 'down') => void;
 }
 
 interface UseHandGestureOptions {
@@ -104,8 +106,12 @@ export const useHandGesture = ({
                 
                 if (data.direction === 'left') {
                   callbacks.onRotateLeft?.();
-                } else {
+                } else if (data.direction === 'right') {
                   callbacks.onRotateRight?.();
+                } else if (data.direction === 'up') {
+                  callbacks.onRotateUp?.();
+                } else if (data.direction === 'down') {
+                  callbacks.onRotateDown?.();
                 }
               }
               break;

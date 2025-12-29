@@ -16,6 +16,7 @@ import uvicorn
 CAM_W, CAM_H = 640, 480
 CLICK_THRESHOLD = 30
 SWIPE_THRESHOLD = 40
+SWIPE_VERTICAL_THRESHOLD = 30  # Vertical movement threshold
 DRAG_THRESHOLD = 0.15  # Distance threshold for drag detection
 
 # Display settings
@@ -213,8 +214,9 @@ class GestureDetector:
                             self.dragging = False
                     
                     # Detect swipe (rotate gesture)
-                    if self.prev_x is not None and current_time - self.last_swipe_time > 0.6:
+                    if self.prev_x is not None and self.prev_y is not None and current_time - self.last_swipe_time > 0.6:
                         dx = cx - self.prev_x
+                        dy = cy - self.prev_y
                         if abs(dx) > SWIPE_THRESHOLD / CAM_W:
                             if dx > 0:
                                 gesture_data["type"] = "swipe"
@@ -224,6 +226,16 @@ class GestureDetector:
                                 gesture_data["type"] = "swipe"
                                 gesture_data["direction"] = "left"
                                 gesture_data["action"] = "rotate_left"
+                            self.last_swipe_time = current_time
+                        elif abs(dy) > SWIPE_VERTICAL_THRESHOLD / CAM_H:
+                            if dy < 0:  # Note: y increases downward, so negative dy means hand moving up
+                                gesture_data["type"] = "swipe"
+                                gesture_data["direction"] = "up"
+                                gesture_data["action"] = "rotate_up"
+                            else:
+                                gesture_data["type"] = "swipe"
+                                gesture_data["direction"] = "down"
+                                gesture_data["action"] = "rotate_down"
                             self.last_swipe_time = current_time
                     
                     self.prev_x = cx

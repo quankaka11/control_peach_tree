@@ -110,6 +110,26 @@ const Index = () => {
           description: 'Vuốt tay sang phải'
         });
       },
+      onRotateUp: () => {
+        setSceneRotation(prev => ({
+          ...prev,
+          x: prev.x - Math.PI / 12  // 15 degrees - nhẹ hơn
+        }));
+        toast.success('⬆️ Xoay lên', {
+          duration: 1500,
+          description: 'Vuốt tay lên trên (nhẹ)'
+        });
+      },
+      onRotateDown: () => {
+        setSceneRotation(prev => ({
+          ...prev,
+          x: prev.x + Math.PI / 12  // 15 degrees - nhẹ hơn
+        }));
+        toast.success('⬇️ Xoay xuống', {
+          duration: 1500,
+          description: 'Vuốt tay xuống dưới (nhẹ)'
+        });
+      },
     },
   });
 
