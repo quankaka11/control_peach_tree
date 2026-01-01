@@ -93,7 +93,7 @@ const Index = () => {
       onRotateLeft: () => {
         setSceneRotation(prev => ({
           ...prev,
-          y: prev.y - Math.PI / 2  // 90 degrees - larger rotation
+          y: prev.y - Math.PI / 12  // 90 degrees - larger rotation
         }));
         toast.success('⬅️ Xoay trái', {
           duration: 1500,
@@ -103,7 +103,7 @@ const Index = () => {
       onRotateRight: () => {
         setSceneRotation(prev => ({
           ...prev,
-          y: prev.y + Math.PI / 2  // 90 degrees - larger rotation
+          y: prev.y + Math.PI / 12  // 90 degrees - larger rotation
         }));
         toast.success('➡️ Xoay phải', {
           duration: 1500,
@@ -113,7 +113,7 @@ const Index = () => {
       onRotateUp: () => {
         setSceneRotation(prev => ({
           ...prev,
-          x: prev.x - Math.PI / 12  // 15 degrees - nhẹ hơn
+          x: prev.x - Math.PI / 24  // 15 degrees - nhẹ hơn
         }));
         toast.success('⬆️ Xoay lên', {
           duration: 1500,
@@ -123,7 +123,7 @@ const Index = () => {
       onRotateDown: () => {
         setSceneRotation(prev => ({
           ...prev,
-          x: prev.x + Math.PI / 12  // 15 degrees - nhẹ hơn
+          x: prev.x + Math.PI / 24  // 15 degrees - nhẹ hơn
         }));
         toast.success('⬇️ Xoay xuống', {
           duration: 1500,

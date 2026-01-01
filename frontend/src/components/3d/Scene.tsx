@@ -27,7 +27,7 @@ interface SceneProps {
 const Particles = () => {
   const particlesRef = useRef<THREE.Points>(null);
   const count = 100;
-  
+
   const positions = new Float32Array(count * 3);
   for (let i = 0; i < count; i++) {
     positions[i * 3] = (Math.random() - 0.5) * 8;
@@ -56,10 +56,10 @@ const Particles = () => {
           itemSize={3}
         />
       </bufferGeometry>
-      <pointsMaterial 
-        size={0.03} 
-        color="#ffd700" 
-        transparent 
+      <pointsMaterial
+        size={0.03}
+        color="#ffd700"
+        transparent
         opacity={0.6}
         sizeAttenuation
       />
@@ -72,7 +72,7 @@ const Ground = () => {
   return (
     <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.5, 0]} receiveShadow>
       <circleGeometry args={[3, 64]} />
-      <meshStandardMaterial 
+      <meshStandardMaterial
         color="#8b5e3c"
         roughness={0.8}
         metalness={0.1}
@@ -84,7 +84,7 @@ const Ground = () => {
 // Camera controller for smooth interactions
 const CameraController = () => {
   const { camera } = useThree();
-  
+
   useFrame(() => {
     camera.lookAt(0, 1.5, 0);
   });
@@ -92,14 +92,19 @@ const CameraController = () => {
   return null;
 };
 
+// Gesture rotation controller
 const GestureRotationController = ({
   rotation,
   gifts,
-  cards
+  cards,
+  onGiftClick,
+  onCardClick
 }: {
   rotation?: { x: number; y: number };
   gifts: Gift[];
   cards: Card[];
+  onGiftClick?: (id: string, color: string) => void;
+  onCardClick?: (id: string) => void;
 }) => {
   const groupRef = useRef<THREE.Group>(null);
 
@@ -113,8 +118,17 @@ const GestureRotationController = ({
 
   return (
     <group ref={groupRef}>
+      {/* Ground - part of the scene group */}
+      <Ground />
+
+      {/* Tree with floating animation */}
       <Float speed={0.5} rotationIntensity={0.1} floatIntensity={0.2}>
-        <PeachBlossomTree gifts={gifts} cards={cards} />
+        <PeachBlossomTree
+          gifts={gifts}
+          cards={cards}
+          onGiftClick={onGiftClick}
+          onCardClick={onCardClick}
+        />
       </Float>
     </group>
   );
@@ -139,22 +153,30 @@ const Scene = ({ gifts, cards, rotation, onCardClick, onGiftClick }: SceneProps)
           />
           <pointLight position={[-3, 3, -3]} intensity={0.5} color="#ff9999" />
           <pointLight position={[3, 2, 3]} intensity={0.3} color="#ffd700" />
-          
+
           {/* Environment */}
           <Stars radius={50} depth={50} count={500} factor={2} saturation={0} fade speed={0.5} />
-          
-{/* Main tree with gesture rotation control */}
+
+          {/* Main tree with gesture rotation control */}
           {rotation ? (
-            <GestureRotationController rotation={rotation} gifts={gifts} cards={cards} />
+            <GestureRotationController
+              rotation={rotation}
+              gifts={gifts}
+              cards={cards}
+              onGiftClick={onGiftClick}
+              onCardClick={onCardClick}
+            />
           ) : (
-            <Float speed={0.5} rotationIntensity={0.1} floatIntensity={0.2}>
-              <PeachBlossomTree gifts={gifts} cards={cards}  onGiftClick={onGiftClick} onCardClick={onCardClick} />
-            </Float>
+            <>
+              <Ground />
+              <Float speed={0.5} rotationIntensity={0.1} floatIntensity={0.2}>
+                <PeachBlossomTree gifts={gifts} cards={cards} onGiftClick={onGiftClick} onCardClick={onCardClick} />
+              </Float>
+            </>
           )}
 
           {/* Atmosphere */}
           <Particles />
-          <Ground />
 
           {/* Controls - disable autoRotate when using gesture control */}
           <OrbitControls
