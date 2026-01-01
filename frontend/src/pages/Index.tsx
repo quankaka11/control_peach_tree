@@ -113,6 +113,9 @@ const Index = () => {
         });
       },
       onOpenHand: () => {
+        console.log('🖐️ onOpenHand callback triggered!');
+        console.log('Gifts:', gifts.length, 'Cards:', cards.length);
+
         // Open random gift or card
         const allItems = [...gifts, ...cards];
         if (allItems.length === 0) {
@@ -126,6 +129,8 @@ const Index = () => {
         const randomIndex = Math.floor(Math.random() * allItems.length);
         const randomItem = allItems[randomIndex];
 
+        console.log('Selected item:', randomItem);
+
         // Determine if it's a gift or card
         const isGift = 'color' in randomItem;
 
@@ -137,6 +142,7 @@ const Index = () => {
         }
 
         setModalOpen(true);
+        console.log('Modal should be open now. modalOpen:', true, 'modalType:', isGift ? 'gift' : 'card');
 
         toast.success('🖐️ Mở tay - Xem quà ngẫu nhiên!', {
           duration: 2000,

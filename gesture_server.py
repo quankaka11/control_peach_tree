@@ -53,6 +53,8 @@ class GestureDetector:
         self.dragging = False
         self.last_swipe_time = time.time()
         self.last_click_time = time.time()
+        self.last_open_hand_time = time.time()  # Track last open hand gesture
+        self.was_fist = False  # Track if previous state was fist
         self.cap = None
         self.active_connections = 0  # Track active connections
         self.camera_lock = False  # Simple lock for camera access
@@ -227,25 +229,45 @@ class GestureDetector:
                             gesture_data["action"] = "pinch"
                             self.last_click_time = current_time
                     
-                    # Detect fist (drag gesture)
+                    # Detect finger state
                     finger_state = self.fingers_up(lm)
-                    if finger_state == [False, False, False, False, False]:
+                    
+                    # Detect open hand (all 5 fingers up) - ONLY if transitioning from fist
+                    # This prevents false positives when hand is just naturally open
+                    if finger_state == [True, True, True, True, True]:
+                        # Only trigger if:
+                        # 1. Previous state was fist (spreading fingers gesture)
+                        # 2. Enough time has passed since last open hand (cooldown)
+                        if self.was_fist and (current_time - self.last_open_hand_time > 2.0):
+                            gesture_data["type"] = "open_hand"
+                            gesture_data["action"] = "open_item"
+                            self.last_open_hand_time = current_time
+                            self.was_fist = False  # Reset state
+                            print(f"✋ OPEN HAND detected! (spread from fist)")
+                        # If hand is just open (not from fist), don't trigger
+                        # But also reset was_fist to prevent stale state
+                        elif not self.was_fist:
+                            pass  # Just normal open hand, do nothing
+                    
+                    # Detect fist (drag gesture) - only if not open hand
+                    elif finger_state == [False, False, False, False, False]:
+                        self.was_fist = True  # Mark that we're in fist state
                         if not self.dragging:
                             gesture_data["type"] = "drag_start"
                             self.dragging = True
                         else:
                             gesture_data["type"] = "dragging"
                     else:
+                        # Partial fingers up - reset fist state
+                        if self.was_fist and finger_state != [True, True, True, True, True]:
+                            # If transitioning from fist but not all fingers up yet, wait
+                            pass
+                        else:
+                            self.was_fist = False
+                            
                         if self.dragging:
                             gesture_data["type"] = "drag_end"
                             self.dragging = False
-                    
-                    # Detect open hand (all 5 fingers up) - for opening gift/card
-                    if finger_state == [True, True, True, True, True]:
-                        if current_time - self.last_click_time > 0.5:  # Debounce
-                            gesture_data["type"] = "open_hand"
-                            gesture_data["action"] = "open_item"
-                            self.last_click_time = current_time
                     
                     # Detect swipe (rotate gesture)
                     if self.prev_x is not None and self.prev_y is not None and current_time - self.last_swipe_time > 0.6:
