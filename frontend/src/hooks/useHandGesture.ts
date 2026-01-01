@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 export interface GestureData {
-  type: 'none' | 'click' | 'drag_start' | 'dragging' | 'drag_end' | 'swipe' | 'no_hand';
+  type: 'none' | 'click' | 'drag_start' | 'dragging' | 'drag_end' | 'swipe' | 'open_hand' | 'no_hand';
   cursor?: {
     x: number;
     y: number;
   };
   direction?: 'left' | 'right' | 'up' | 'down';
-  action?: 'pinch' | 'rotate_left' | 'rotate_right' | 'rotate_up' | 'rotate_down';
+  action?: 'pinch' | 'rotate_left' | 'rotate_right' | 'rotate_up' | 'rotate_down' | 'open_item';
   timestamp: number;
 }
 
@@ -22,6 +22,7 @@ export interface GestureCallbacks {
   onRotateUp?: () => void;
   onRotateDown?: () => void;
   onSwipe?: (direction: 'left' | 'right' | 'up' | 'down') => void;
+  onOpenHand?: () => void;
 }
 
 interface UseHandGestureOptions {
@@ -41,7 +42,7 @@ export const useHandGesture = ({
   const [isHandDetected, setIsHandDetected] = useState(false);
   const [lastGesture, setLastGesture] = useState<GestureData | null>(null);
   const [cursorPosition, setCursorPosition] = useState({ x: 0.5, y: 0.5 });
-  
+
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const reconnectAttemptsRef = useRef(0);
@@ -52,7 +53,7 @@ export const useHandGesture = ({
 
     try {
       if (debug) console.log('🔌 Connecting to gesture server:', serverUrl);
-      
+
       const ws = new WebSocket(serverUrl);
       wsRef.current = ws;
 
@@ -103,7 +104,7 @@ export const useHandGesture = ({
               if (data.direction) {
                 if (debug) console.log(`👉 Swipe ${data.direction}`);
                 callbacks.onSwipe?.(data.direction);
-                
+
                 if (data.direction === 'left') {
                   callbacks.onRotateLeft?.();
                 } else if (data.direction === 'right') {
@@ -114,6 +115,11 @@ export const useHandGesture = ({
                   callbacks.onRotateDown?.();
                 }
               }
+              break;
+
+            case 'open_hand':
+              if (debug) console.log('🖐️ Open hand gesture detected');
+              callbacks.onOpenHand?.();
               break;
           }
         } catch (error) {
@@ -135,11 +141,11 @@ export const useHandGesture = ({
         if (enabled && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
           const delay = Math.min(1000 * Math.pow(2, reconnectAttemptsRef.current), 10000);
-          
+
           if (debug) {
             console.log(`🔄 Reconnecting in ${delay}ms (attempt ${reconnectAttemptsRef.current}/${maxReconnectAttempts})`);
           }
-          
+
           reconnectTimeoutRef.current = setTimeout(connect, delay);
         }
       };
@@ -152,12 +158,12 @@ export const useHandGesture = ({
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
     }
-    
+
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
     }
-    
+
     setIsConnected(false);
     setIsHandDetected(false);
   }, []);

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion';
-import { Hand, Circle, Move, RotateCw, MousePointer2 } from 'lucide-react';
+import { Hand, Circle, Move, RotateCw, MousePointer2, HandMetal } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface GestureIndicatorProps {
@@ -27,6 +27,8 @@ export const GestureIndicator = ({
                 return <Move className="w-4 h-4" />;
             case 'swipe':
                 return <RotateCw className="w-4 h-4" />;
+            case 'open_hand':
+                return <HandMetal className="w-4 h-4" />;
             default:
                 return <Hand className="w-4 h-4" />;
         }
@@ -37,13 +39,15 @@ export const GestureIndicator = ({
             case 'click':
                 return 'Chạm 2 ngón';
             case 'drag_start':
-                return 'Bắt đầu kéo';
+                return 'Nắm tay - Đóng thiệp/quà';
             case 'dragging':
-                return 'Đang kéo';
+                return 'Nắm tay';
             case 'drag_end':
-                return 'Kết thúc kéo';
+                return 'Thả tay';
             case 'swipe':
-                return 'Vuốt tay';
+                return 'Vuốt tay - Xoay/Di chuyển';
+            case 'open_hand':
+                return 'Mở tay (5 ngón)';
             case 'no_hand':
                 return 'Không phát hiện tay';
             default:

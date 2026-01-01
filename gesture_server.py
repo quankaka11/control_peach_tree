@@ -54,6 +54,8 @@ class GestureDetector:
         self.last_swipe_time = time.time()
         self.last_click_time = time.time()
         self.cap = None
+        self.active_connections = 0  # Track active connections
+        self.camera_lock = False  # Simple lock for camera access
         
     def get_distance(self, p1, p2):
         """Calculate Euclidean distance between two points"""
@@ -117,6 +119,9 @@ class GestureDetector:
         elif gesture_type == "swipe":
             status_color = (255, 255, 0)  # Cyan
             status_text = "SWIPE!"
+        elif gesture_type == "open_hand":
+            status_color = (147, 112, 219)  # Purple
+            status_text = "OPEN HAND - View Item!"
         else:
             status_color = (0, 255, 0)  # Green
             status_text = "Hand Detected"
@@ -133,28 +138,50 @@ class GestureDetector:
         """Initialize camera"""
         if self.cap is None:
             self.cap = cv2.VideoCapture(0)
+            if not self.cap.isOpened():
+                print("❌ Failed to open camera")
+                self.cap = None
+                return False
+            
             self.cap.set(3, CAM_W)
             self.cap.set(4, CAM_H)
             
             if SHOW_CAMERA_WINDOW:
                 cv2.namedWindow(WINDOW_NAME, cv2.WINDOW_NORMAL)
                 cv2.resizeWindow(WINDOW_NAME, PREVIEW_WIDTH, PREVIEW_HEIGHT)
+            
+            print(f"📷 Camera initialized")
+        
+        self.active_connections += 1
+        print(f"👥 Active connections: {self.active_connections}")
+        return True
     
     def stop_camera(self):
-        """Release camera"""
-        if self.cap is not None:
+        """Release camera only when no active connections"""
+        self.active_connections = max(0, self.active_connections - 1)
+        print(f"👥 Active connections: {self.active_connections}")
+        
+        if self.active_connections == 0 and self.cap is not None:
             self.cap.release()
             self.cap = None
-        
-        if SHOW_CAMERA_WINDOW:
-            cv2.destroyAllWindows()
+            
+            if SHOW_CAMERA_WINDOW:
+                cv2.destroyAllWindows()
+            
+            print("📷 Camera released")
     
     async def detect_gestures(self, websocket: WebSocket):
         """Main gesture detection loop"""
-        self.start_camera()
+        if not self.start_camera():
+            print("❌ Cannot start camera, aborting gesture detection")
+            return
         
         try:
             while True:
+                if self.cap is None:
+                    print("❌ Camera is None, breaking loop")
+                    break
+                    
                 success, img = self.cap.read()
                 if not success:
                     await asyncio.sleep(0.01)
@@ -212,6 +239,13 @@ class GestureDetector:
                         if self.dragging:
                             gesture_data["type"] = "drag_end"
                             self.dragging = False
+                    
+                    # Detect open hand (all 5 fingers up) - for opening gift/card
+                    if finger_state == [True, True, True, True, True]:
+                        if current_time - self.last_click_time > 0.5:  # Debounce
+                            gesture_data["type"] = "open_hand"
+                            gesture_data["action"] = "open_item"
+                            self.last_click_time = current_time
                     
                     # Detect swipe (rotate gesture)
                     if self.prev_x is not None and self.prev_y is not None and current_time - self.last_swipe_time > 0.6:

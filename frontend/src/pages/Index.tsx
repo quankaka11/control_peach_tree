@@ -46,7 +46,7 @@ const Index = () => {
   const [aiActive, setAiActive] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackType, setFeedbackType] = useState<'gift' | 'card' | null>(null);
-  
+
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState<'gift' | 'card' | null>(null);
@@ -67,6 +67,11 @@ const Index = () => {
     debug: true,
     callbacks: {
       onClick: () => {
+        // Close modal if open
+        if (modalOpen) {
+          setModalOpen(false);
+        }
+
         // Pinch gesture - add gift or card based on cursor position
         if (cursorPosition.x < 0.5) {
           handleAddGift();
@@ -75,25 +80,22 @@ const Index = () => {
         }
       },
       onDragStart: () => {
-        isDraggingRef.current = true;
-        toast.info('Nắm tay để xoay cây đào', { duration: 1000 });
-      },
-      onDragging: (x: number, y: number) => {
-        // Update scene rotation based on hand movement
-        if (isDraggingRef.current) {
-          setSceneRotation({
-            x: (y - 0.5) * Math.PI,
-            y: (x - 0.5) * Math.PI * 2,
-          });
+        // Fist gesture - CLOSE modal if open
+        if (modalOpen) {
+          setModalOpen(false);
+          toast.info('✊ Nắm tay - Đóng thiệp/quà', { duration: 1500 });
         }
       },
+      onDragging: () => {
+        // No action - removed drag to rotate functionality
+      },
       onDragEnd: () => {
-        isDraggingRef.current = false;
+        // No action
       },
       onRotateLeft: () => {
         setSceneRotation(prev => ({
           ...prev,
-          y: prev.y - Math.PI / 12  // 90 degrees - larger rotation
+          y: prev.y - Math.PI / 12  // 90 degrees
         }));
         toast.success('⬅️ Xoay trái', {
           duration: 1500,
@@ -103,11 +105,42 @@ const Index = () => {
       onRotateRight: () => {
         setSceneRotation(prev => ({
           ...prev,
-          y: prev.y + Math.PI / 12  // 90 degrees - larger rotation
+          y: prev.y + Math.PI / 12  // 90 degrees
         }));
         toast.success('➡️ Xoay phải', {
           duration: 1500,
           description: 'Vuốt tay sang phải'
+        });
+      },
+      onOpenHand: () => {
+        // Open random gift or card
+        const allItems = [...gifts, ...cards];
+        if (allItems.length === 0) {
+          toast.info('Chưa có quà hoặc thiệp nào!', {
+            description: 'Hãy thêm quà hoặc thiệp trước'
+          });
+          return;
+        }
+
+        // Pick random item
+        const randomIndex = Math.floor(Math.random() * allItems.length);
+        const randomItem = allItems[randomIndex];
+
+        // Determine if it's a gift or card
+        const isGift = 'color' in randomItem;
+
+        if (isGift) {
+          setModalType('gift');
+          setSelectedColor((randomItem as Gift).color);
+        } else {
+          setModalType('card');
+        }
+
+        setModalOpen(true);
+
+        toast.success('🖐️ Mở tay - Xem quà ngẫu nhiên!', {
+          duration: 2000,
+          description: isGift ? 'Đã mở hộp quà' : 'Đã mở thiệp chúc'
         });
       },
       onRotateUp: () => {
@@ -150,17 +183,17 @@ const Index = () => {
       color: GIFT_COLORS[gifts.length % GIFT_COLORS.length],
       position: getNextPosition(gifts.length + cards.length),
     };
-    
+
     setGifts(prev => [...prev, newGift]);
     setFeedbackType('gift');
     setShowFeedback(true);
-    
+
     // Simulate AI gesture recognition
     setAiActive(true);
     setTimeout(() => setAiActive(false), 1500);
-    
+
     setTimeout(() => setShowFeedback(false), 1000);
-    
+
     toast.success('Đã treo hộp quà lên cây đào!', {
       description: 'Kéo chuột để xoay và xem quà tặng',
     });
@@ -171,17 +204,17 @@ const Index = () => {
       id: `card-${Date.now()}`,
       position: getNextPosition(gifts.length + cards.length),
     };
-    
+
     setCards(prev => [...prev, newCard]);
     setFeedbackType('card');
     setShowFeedback(true);
-    
+
     // Simulate AI gesture recognition
     setAiActive(true);
     setTimeout(() => setAiActive(false), 1500);
-    
+
     setTimeout(() => setShowFeedback(false), 1000);
-    
+
     toast.success('Đã gắn thiệp chúc Tết!', {
       description: 'Lời chúc của bạn đã được treo lên cây',
     });
@@ -210,7 +243,7 @@ const Index = () => {
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {/* Soft gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5" />
-        
+
         {/* Floating petals - decorative */}
         {[...Array(6)].map((_, i) => (
           <motion.div
@@ -238,15 +271,15 @@ const Index = () => {
       <TopBar aiActive={aiActive} />
 
       {/* Left sidebar - Gift controls */}
-      <LeftSidebar 
-        onAddGift={handleAddGift} 
-        giftCount={gifts.length} 
+      <LeftSidebar
+        onAddGift={handleAddGift}
+        giftCount={gifts.length}
       />
 
       {/* Right sidebar - Card controls */}
-      <RightSidebar 
-        onAddCard={handleAddCard} 
-        cardCount={cards.length} 
+      <RightSidebar
+        onAddCard={handleAddCard}
+        cardCount={cards.length}
       />
 
       {/* Main 3D Canvas */}
@@ -256,9 +289,9 @@ const Index = () => {
         animate={{ opacity: 1 }}
         transition={{ duration: 1 }}
       >
-        <Scene 
-          gifts={gifts} 
-          cards={cards} 
+        <Scene
+          gifts={gifts}
+          cards={cards}
           onGiftClick={handleGiftClick}
           onCardClick={handleCardClick}
           rotation={gestureEnabled ? sceneRotation : undefined}
@@ -316,7 +349,7 @@ const Index = () => {
       >
         <div className="px-6 py-3 rounded-full glass-panel shadow-soft">
           <p className="text-sm text-muted-foreground text-center">
-            <span className="text-primary font-medium">Kéo chuột</span> để xoay cây đào • 
+            <span className="text-primary font-medium">Kéo chuột</span> để xoay cây đào •
             <span className="text-accent font-medium ml-1">Cuộn</span> để phóng to/thu nhỏ
           </p>
         </div>
