@@ -102,6 +102,12 @@ const Index = () => {
         duration: 1500,
         description: 'Đã đóng thiệp/quà'
       });
+    } else {
+      console.log('⬇️ Swipe down detected but modal is not open');
+      toast.info('⬇️ Vuốt xuống', {
+        duration: 1000,
+        description: 'Không có gì để đóng'
+      });
     }
   }, [modalOpen]);
 
@@ -161,9 +167,6 @@ const Index = () => {
 
       // ACTION 5: Swipe Down - Close modal (only when modal is open)
       onCloseModal: handleCloseModalGesture,
-
-      // Track modal state for backend
-      modalIsOpen: modalOpen,
     },
   });
 

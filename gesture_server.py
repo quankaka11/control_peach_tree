@@ -63,9 +63,6 @@ class GestureDetector:
         self.movement_direction = None  # 'left', 'right', 'up', 'down', or None
         self.movement_confirmed_frames = 0
         
-        # Modal state (will be sent from frontend)
-        self.modal_is_open = False
-        
         # Camera management
         self.cap = None
         self.active_connections = 0
@@ -303,13 +300,13 @@ class GestureDetector:
                                 self.last_swipe_vertical_time = current_time
                                 print(f"⬆️ SWIPE UP detected! Opening modal...")
                             
-                            # Swipe DOWN: Only closes modal if one is open
-                            elif new_direction == 'down' and self.modal_is_open:
+                            # Swipe DOWN: Send to frontend (frontend will check if modal is open)
+                            elif new_direction == 'down':
                                 gesture_data["type"] = "swipe"
                                 gesture_data["direction"] = "down"
                                 gesture_data["action"] = "close_modal"
                                 self.last_swipe_vertical_time = current_time
-                                print(f"⬇️ SWIPE DOWN detected! Closing modal...")
+                                print(f"⬇️ SWIPE DOWN detected! Sending close signal...")
                             
                             # Reset movement tracking
                             self.movement_start_x = cx

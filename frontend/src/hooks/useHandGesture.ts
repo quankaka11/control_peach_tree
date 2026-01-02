@@ -18,7 +18,6 @@ export interface GestureCallbacks {
   onRotateRight?: () => void;  // Swipe right
   onOpenModal?: () => void;  // Swipe up
   onCloseModal?: () => void;  // Swipe down
-  modalIsOpen?: boolean;  // Track modal state for server
 }
 
 interface UseHandGestureOptions {
