@@ -56,6 +56,55 @@ const Index = () => {
   const [sceneRotation, setSceneRotation] = useState({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
 
+  // Gesture handlers with proper dependencies to avoid closure issues
+  const handleOpenModalGesture = useCallback(() => {
+    console.log('⬆️ onOpenModal callback triggered!');
+    console.log('Gifts:', gifts.length, 'Cards:', cards.length);
+
+    // Open random gift or card
+    const allItems = [...gifts, ...cards];
+    if (allItems.length === 0) {
+      toast.info('Chưa có quà hoặc thiệp nào!', {
+        description: 'Hãy thêm quà hoặc thiệp trước'
+      });
+      return;
+    }
+
+    // Pick random item
+    const randomIndex = Math.floor(Math.random() * allItems.length);
+    const randomItem = allItems[randomIndex];
+
+    console.log('Selected item:', randomItem);
+
+    // Determine if it's a gift or card
+    const isGift = 'color' in randomItem;
+
+    if (isGift) {
+      setModalType('gift');
+      setSelectedColor((randomItem as Gift).color);
+    } else {
+      setModalType('card');
+    }
+
+    setModalOpen(true);
+    console.log('Modal opened. Type:', isGift ? 'gift' : 'card');
+
+    toast.success('⬆️ Vuốt lên - Mở quà!', {
+      duration: 2000,
+      description: isGift ? 'Đã mở hộp quà' : 'Đã mở thiệp chúc'
+    });
+  }, [gifts, cards]);
+
+  const handleCloseModalGesture = useCallback(() => {
+    if (modalOpen) {
+      setModalOpen(false);
+      toast.info('⬇️ Vuốt xuống - Đóng!', {
+        duration: 1500,
+        description: 'Đã đóng thiệp/quà'
+      });
+    }
+  }, [modalOpen]);
+
   // Hand gesture control integration
   const {
     isConnected,
@@ -108,54 +157,10 @@ const Index = () => {
       },
 
       // ACTION 4: Swipe Up - Open random gift/card
-      onOpenModal: () => {
-        console.log('⬆️ onOpenModal callback triggered!');
-        console.log('Gifts:', gifts.length, 'Cards:', cards.length);
-
-        // Open random gift or card
-        const allItems = [...gifts, ...cards];
-        if (allItems.length === 0) {
-          toast.info('Chưa có quà hoặc thiệp nào!', {
-            description: 'Hãy thêm quà hoặc thiệp trước'
-          });
-          return;
-        }
-
-        // Pick random item
-        const randomIndex = Math.floor(Math.random() * allItems.length);
-        const randomItem = allItems[randomIndex];
-
-        console.log('Selected item:', randomItem);
-
-        // Determine if it's a gift or card
-        const isGift = 'color' in randomItem;
-
-        if (isGift) {
-          setModalType('gift');
-          setSelectedColor((randomItem as Gift).color);
-        } else {
-          setModalType('card');
-        }
-
-        setModalOpen(true);
-        console.log('Modal opened. Type:', isGift ? 'gift' : 'card');
-
-        toast.success('⬆️ Vuốt lên - Mở quà!', {
-          duration: 2000,
-          description: isGift ? 'Đã mở hộp quà' : 'Đã mở thiệp chúc'
-        });
-      },
+      onOpenModal: handleOpenModalGesture,
 
       // ACTION 5: Swipe Down - Close modal (only when modal is open)
-      onCloseModal: () => {
-        if (modalOpen) {
-          setModalOpen(false);
-          toast.info('⬇️ Vuốt xuống - Đóng!', {
-            duration: 1500,
-            description: 'Đã đóng thiệp/quà'
-          });
-        }
-      },
+      onCloseModal: handleCloseModalGesture,
 
       // Track modal state for backend
       modalIsOpen: modalOpen,

@@ -44,6 +44,14 @@ export const useHandGesture = ({
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
 
+  // Store callbacks in ref to avoid reconnection when they change
+  const callbacksRef = useRef(callbacks);
+
+  // Update callbacks ref when they change
+  useEffect(() => {
+    callbacksRef.current = callbacks;
+  }, [callbacks]);
+
   const connect = useCallback(() => {
     if (!enabled) return;
 
@@ -70,14 +78,14 @@ export const useHandGesture = ({
           // Update cursor position
           if (data.cursor) {
             setCursorPosition(data.cursor);
-            callbacks.onCursorMove?.(data.cursor.x, data.cursor.y);
+            callbacksRef.current.onCursorMove?.(data.cursor.x, data.cursor.y);
           }
 
           // Handle gestures
           switch (data.type) {
             case 'pinch':
               if (debug) console.log('👌 Pinch gesture detected - Adding item');
-              callbacks.onPinch?.();
+              callbacksRef.current.onPinch?.();
               break;
 
             case 'swipe':
@@ -85,13 +93,13 @@ export const useHandGesture = ({
                 if (debug) console.log(`👉 Swipe ${data.direction}`);
 
                 if (data.direction === 'left') {
-                  callbacks.onRotateLeft?.();
+                  callbacksRef.current.onRotateLeft?.();
                 } else if (data.direction === 'right') {
-                  callbacks.onRotateRight?.();
+                  callbacksRef.current.onRotateRight?.();
                 } else if (data.direction === 'up') {
-                  callbacks.onOpenModal?.();
+                  callbacksRef.current.onOpenModal?.();
                 } else if (data.direction === 'down') {
-                  callbacks.onCloseModal?.();
+                  callbacksRef.current.onCloseModal?.();
                 }
               }
               break;
@@ -126,7 +134,7 @@ export const useHandGesture = ({
     } catch (error) {
       console.error('Failed to create WebSocket connection:', error);
     }
-  }, [enabled, serverUrl, callbacks, debug]);
+  }, [enabled, serverUrl, debug]);
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {
