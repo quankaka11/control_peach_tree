@@ -19,16 +19,10 @@ export const GestureIndicator = ({
 }: GestureIndicatorProps) => {
     const getGestureIcon = () => {
         switch (lastGestureType) {
-            case 'click':
+            case 'pinch':
                 return <MousePointer2 className="w-4 h-4" />;
-            case 'drag_start':
-            case 'dragging':
-            case 'drag_end':
-                return <Move className="w-4 h-4" />;
             case 'swipe':
                 return <RotateCw className="w-4 h-4" />;
-            case 'open_hand':
-                return <HandMetal className="w-4 h-4" />;
             default:
                 return <Hand className="w-4 h-4" />;
         }
@@ -36,18 +30,10 @@ export const GestureIndicator = ({
 
     const getGestureText = () => {
         switch (lastGestureType) {
-            case 'click':
-                return 'Chạm 2 ngón';
-            case 'drag_start':
-                return 'Nắm tay - Đóng thiệp/quà';
-            case 'dragging':
-                return 'Nắm tay';
-            case 'drag_end':
-                return 'Thả tay';
+            case 'pinch':
+                return 'Chạm 2 ngón - Thêm quà/thiệp';
             case 'swipe':
-                return 'Vuốt tay - Xoay/Di chuyển';
-            case 'open_hand':
-                return 'Mở tay (5 ngón)';
+                return 'Vuốt tay - Xoay/Mở/Đóng';
             case 'no_hand':
                 return 'Không phát hiện tay';
             default:

@@ -14,10 +14,11 @@ import uvicorn
 
 # ================== CONFIG ==================
 CAM_W, CAM_H = 640, 480
-CLICK_THRESHOLD = 30
-SWIPE_THRESHOLD = 40
-SWIPE_VERTICAL_THRESHOLD = 30  # Vertical movement threshold
-DRAG_THRESHOLD = 0.15  # Distance threshold for drag detection
+PINCH_THRESHOLD = 30  # Pinch distance for adding items
+SWIPE_HORIZONTAL_THRESHOLD = 80  # Horizontal swipe threshold (increased to prevent accidental triggers)
+SWIPE_VERTICAL_THRESHOLD = 80  # Vertical swipe threshold (increased)
+GESTURE_COOLDOWN = 0.8  # Cooldown between gestures to prevent cancellation
+MOVEMENT_CONFIRMATION_FRAMES = 3  # Number of frames to confirm movement direction
 
 # Display settings
 SHOW_CAMERA_WINDOW = True  # Set to False to disable camera preview
@@ -50,29 +51,30 @@ class GestureDetector:
     def __init__(self):
         self.prev_x = None
         self.prev_y = None
-        self.dragging = False
-        self.last_swipe_time = time.time()
-        self.last_click_time = time.time()
-        self.last_open_hand_time = time.time()  # Track last open hand gesture
-        self.was_fist = False  # Track if previous state was fist
+        
+        # Gesture cooldowns (separate for each type)
+        self.last_pinch_time = 0
+        self.last_swipe_horizontal_time = 0
+        self.last_swipe_vertical_time = 0
+        
+        # Movement tracking for anti-cancellation
+        self.movement_start_x = None
+        self.movement_start_y = None
+        self.movement_direction = None  # 'left', 'right', 'up', 'down', or None
+        self.movement_confirmed_frames = 0
+        
+        # Modal state (will be sent from frontend)
+        self.modal_is_open = False
+        
+        # Camera management
         self.cap = None
-        self.active_connections = 0  # Track active connections
-        self.camera_lock = False  # Simple lock for camera access
+        self.active_connections = 0
+        self.camera_lock = False
         
     def get_distance(self, p1, p2):
         """Calculate Euclidean distance between two points"""
         return np.linalg.norm(np.array(p1) - np.array(p2))
-    
-    def fingers_up(self, lm):
-        """Detect which fingers are up"""
-        tips = [4, 8, 12, 16, 20]
-        fingers = []
-        # Thumb
-        fingers.append(lm[tips[0]].x < lm[tips[0] - 1].x)
-        # Other fingers
-        for i in range(1, 5):
-            fingers.append(lm[tips[i]].y < lm[tips[i] - 2].y)
-        return fingers
+
     
     def draw_preview(self, img, hand_landmarks, gesture_type, cursor_pos=None):
         """Draw hand landmarks and gesture info on preview window"""
@@ -215,98 +217,129 @@ class GestureDetector:
                         "y": cy
                     }
                     
-                    # Detect pinch (click gesture)
+                    current_time = time.time()
+                    
+                    # ========== ACTION 1: PINCH (Add Gift/Card) ==========
                     dist = self.get_distance(
                         (index_tip.x, index_tip.y),
                         (thumb_tip.x, thumb_tip.y)
                     )
                     
-                    current_time = time.time()
+                    if dist < PINCH_THRESHOLD / CAM_W:
+                        if current_time - self.last_pinch_time > GESTURE_COOLDOWN:
+                            gesture_data["type"] = "pinch"
+                            gesture_data["action"] = "add_item"
+                            self.last_pinch_time = current_time
+                            print(f"👌 PINCH detected! Adding item...")
                     
-                    if dist < CLICK_THRESHOLD / CAM_W:  # Normalize threshold
-                        if current_time - self.last_click_time > 0.3:  # Debounce
-                            gesture_data["type"] = "click"
-                            gesture_data["action"] = "pinch"
-                            self.last_click_time = current_time
+                    # ========== SWIPE DETECTION WITH ANTI-CANCELLATION ==========
+                    # Initialize movement tracking
+                    if self.movement_start_x is None:
+                        self.movement_start_x = cx
+                        self.movement_start_y = cy
                     
-                    # Detect finger state
-                    finger_state = self.fingers_up(lm)
+                    # Calculate movement from start position
+                    dx = cx - self.movement_start_x
+                    dy = cy - self.movement_start_y
                     
-                    # Detect open hand (all 5 fingers up) - ONLY if transitioning from fist
-                    # This prevents false positives when hand is just naturally open
-                    if finger_state == [True, True, True, True, True]:
-                        # Only trigger if:
-                        # 1. Previous state was fist (spreading fingers gesture)
-                        # 2. Enough time has passed since last open hand (cooldown)
-                        if self.was_fist and (current_time - self.last_open_hand_time > 2.0):
-                            gesture_data["type"] = "open_hand"
-                            gesture_data["action"] = "open_item"
-                            self.last_open_hand_time = current_time
-                            self.was_fist = False  # Reset state
-                            print(f"✋ OPEN HAND detected! (spread from fist)")
-                        # If hand is just open (not from fist), don't trigger
-                        # But also reset was_fist to prevent stale state
-                        elif not self.was_fist:
-                            pass  # Just normal open hand, do nothing
+                    # Convert to pixels for threshold comparison
+                    dx_px = abs(dx * CAM_W)
+                    dy_px = abs(dy * CAM_H)
                     
-                    # Detect fist (drag gesture) - only if not open hand
-                    elif finger_state == [False, False, False, False, False]:
-                        self.was_fist = True  # Mark that we're in fist state
-                        if not self.dragging:
-                            gesture_data["type"] = "drag_start"
-                            self.dragging = True
+                    # Determine if we have significant movement
+                    has_horizontal_movement = dx_px > SWIPE_HORIZONTAL_THRESHOLD
+                    has_vertical_movement = dy_px > SWIPE_VERTICAL_THRESHOLD
+                    
+                    # ========== ACTION 2 & 3: SWIPE LEFT/RIGHT (Rotate) ==========
+                    if has_horizontal_movement and not has_vertical_movement:
+                        # Determine direction
+                        new_direction = 'right' if dx > 0 else 'left'
+                        
+                        # Confirm movement direction
+                        if self.movement_direction == new_direction:
+                            self.movement_confirmed_frames += 1
                         else:
-                            gesture_data["type"] = "dragging"
-                    else:
-                        # Partial fingers up - reset fist state
-                        if self.was_fist and finger_state != [True, True, True, True, True]:
-                            # If transitioning from fist but not all fingers up yet, wait
-                            pass
-                        else:
-                            self.was_fist = False
+                            self.movement_direction = new_direction
+                            self.movement_confirmed_frames = 1
+                        
+                        # Trigger gesture only if confirmed and cooldown passed
+                        if (self.movement_confirmed_frames >= MOVEMENT_CONFIRMATION_FRAMES and 
+                            current_time - self.last_swipe_horizontal_time > GESTURE_COOLDOWN):
                             
-                        if self.dragging:
-                            gesture_data["type"] = "drag_end"
-                            self.dragging = False
+                            gesture_data["type"] = "swipe"
+                            gesture_data["direction"] = new_direction
+                            gesture_data["action"] = f"rotate_{new_direction}"
+                            self.last_swipe_horizontal_time = current_time
+                            
+                            # Reset movement tracking to prevent re-trigger
+                            self.movement_start_x = cx
+                            self.movement_start_y = cy
+                            self.movement_direction = None
+                            self.movement_confirmed_frames = 0
+                            
+                            print(f"{'➡️' if new_direction == 'right' else '⬅️'} SWIPE {new_direction.upper()} detected!")
                     
-                    # Detect swipe (rotate gesture)
-                    if self.prev_x is not None and self.prev_y is not None and current_time - self.last_swipe_time > 0.6:
-                        dx = cx - self.prev_x
-                        dy = cy - self.prev_y
-                        if abs(dx) > SWIPE_THRESHOLD / CAM_W:
-                            if dx > 0:
-                                gesture_data["type"] = "swipe"
-                                gesture_data["direction"] = "right"
-                                gesture_data["action"] = "rotate_right"
-                            else:
-                                gesture_data["type"] = "swipe"
-                                gesture_data["direction"] = "left"
-                                gesture_data["action"] = "rotate_left"
-                            self.last_swipe_time = current_time
-                        elif abs(dy) > SWIPE_VERTICAL_THRESHOLD / CAM_H:
-                            if dy < 0:  # Note: y increases downward, so negative dy means hand moving up
+                    # ========== ACTION 4 & 5: SWIPE UP/DOWN (Open/Close Modal) ==========
+                    elif has_vertical_movement and not has_horizontal_movement:
+                        # Determine direction (remember: y increases downward)
+                        new_direction = 'up' if dy < 0 else 'down'
+                        
+                        # Confirm movement direction
+                        if self.movement_direction == new_direction:
+                            self.movement_confirmed_frames += 1
+                        else:
+                            self.movement_direction = new_direction
+                            self.movement_confirmed_frames = 1
+                        
+                        # Trigger gesture only if confirmed and cooldown passed
+                        if (self.movement_confirmed_frames >= MOVEMENT_CONFIRMATION_FRAMES and 
+                            current_time - self.last_swipe_vertical_time > GESTURE_COOLDOWN):
+                            
+                            # Swipe UP: Always opens modal
+                            if new_direction == 'up':
                                 gesture_data["type"] = "swipe"
                                 gesture_data["direction"] = "up"
-                                gesture_data["action"] = "rotate_up"
-                            else:
+                                gesture_data["action"] = "open_modal"
+                                self.last_swipe_vertical_time = current_time
+                                print(f"⬆️ SWIPE UP detected! Opening modal...")
+                            
+                            # Swipe DOWN: Only closes modal if one is open
+                            elif new_direction == 'down' and self.modal_is_open:
                                 gesture_data["type"] = "swipe"
                                 gesture_data["direction"] = "down"
-                                gesture_data["action"] = "rotate_down"
-                            self.last_swipe_time = current_time
+                                gesture_data["action"] = "close_modal"
+                                self.last_swipe_vertical_time = current_time
+                                print(f"⬇️ SWIPE DOWN detected! Closing modal...")
+                            
+                            # Reset movement tracking
+                            self.movement_start_x = cx
+                            self.movement_start_y = cy
+                            self.movement_direction = None
+                            self.movement_confirmed_frames = 0
                     
+                    # Reset movement tracking if hand is relatively still
+                    elif not has_horizontal_movement and not has_vertical_movement:
+                        # Hand returned to neutral - reset tracking
+                        self.movement_start_x = cx
+                        self.movement_start_y = cy
+                        self.movement_direction = None
+                        self.movement_confirmed_frames = 0
+                    
+                    # Update previous position
                     self.prev_x = cx
                     self.prev_y = cy
                     
                     # Draw preview window with hand tracking
                     self.draw_preview(img, hand, gesture_data["type"], (cx, cy))
                 else:
-                    # No hand detected
+                    # No hand detected - reset all tracking
                     gesture_data["type"] = "no_hand"
                     self.prev_x = None
                     self.prev_y = None
-                    if self.dragging:
-                        gesture_data["type"] = "drag_end"
-                        self.dragging = False
+                    self.movement_start_x = None
+                    self.movement_start_y = None
+                    self.movement_direction = None
+                    self.movement_confirmed_frames = 0
                     
                     # Draw preview window without hand
                     self.draw_preview(img, None, gesture_data["type"])

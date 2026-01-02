@@ -66,54 +66,50 @@ const Index = () => {
     enabled: gestureEnabled,
     debug: true,
     callbacks: {
-      onClick: () => {
-        // Close modal if open
-        if (modalOpen) {
-          setModalOpen(false);
-        }
-
-        // Pinch gesture - add gift or card based on cursor position
+      // ACTION 1: Pinch - Add gift or card based on cursor position
+      onPinch: () => {
         if (cursorPosition.x < 0.5) {
           handleAddGift();
+          toast.success('👌 Chạm ngón - Thêm quà!', {
+            duration: 1500,
+            description: 'Ngón trỏ chạm ngón cái'
+          });
         } else {
           handleAddCard();
+          toast.success('👌 Chạm ngón - Thêm thiệp!', {
+            duration: 1500,
+            description: 'Ngón trỏ chạm ngón cái'
+          });
         }
       },
-      onDragStart: () => {
-        // Fist gesture - CLOSE modal if open
-        if (modalOpen) {
-          setModalOpen(false);
-          toast.info('✊ Nắm tay - Đóng thiệp/quà', { duration: 1500 });
-        }
-      },
-      onDragging: () => {
-        // No action - removed drag to rotate functionality
-      },
-      onDragEnd: () => {
-        // No action
-      },
+
+      // ACTION 2: Swipe Left - Rotate tree left
       onRotateLeft: () => {
         setSceneRotation(prev => ({
           ...prev,
-          y: prev.y - Math.PI / 12  // 90 degrees
+          y: prev.y - Math.PI / 12  // 15 degrees
         }));
         toast.success('⬅️ Xoay trái', {
           duration: 1500,
           description: 'Vuốt tay sang trái'
         });
       },
+
+      // ACTION 3: Swipe Right - Rotate tree right
       onRotateRight: () => {
         setSceneRotation(prev => ({
           ...prev,
-          y: prev.y + Math.PI / 12  // 90 degrees
+          y: prev.y + Math.PI / 12  // 15 degrees
         }));
         toast.success('➡️ Xoay phải', {
           duration: 1500,
           description: 'Vuốt tay sang phải'
         });
       },
-      onOpenHand: () => {
-        console.log('🖐️ onOpenHand callback triggered!');
+
+      // ACTION 4: Swipe Up - Open random gift/card
+      onOpenModal: () => {
+        console.log('⬆️ onOpenModal callback triggered!');
         console.log('Gifts:', gifts.length, 'Cards:', cards.length);
 
         // Open random gift or card
@@ -142,33 +138,27 @@ const Index = () => {
         }
 
         setModalOpen(true);
-        console.log('Modal should be open now. modalOpen:', true, 'modalType:', isGift ? 'gift' : 'card');
+        console.log('Modal opened. Type:', isGift ? 'gift' : 'card');
 
-        toast.success('🖐️ Mở tay - Xem quà ngẫu nhiên!', {
+        toast.success('⬆️ Vuốt lên - Mở quà!', {
           duration: 2000,
           description: isGift ? 'Đã mở hộp quà' : 'Đã mở thiệp chúc'
         });
       },
-      onRotateUp: () => {
-        setSceneRotation(prev => ({
-          ...prev,
-          x: prev.x - Math.PI / 24  // 15 degrees - nhẹ hơn
-        }));
-        toast.success('⬆️ Xoay lên', {
-          duration: 1500,
-          description: 'Vuốt tay lên trên (nhẹ)'
-        });
+
+      // ACTION 5: Swipe Down - Close modal (only when modal is open)
+      onCloseModal: () => {
+        if (modalOpen) {
+          setModalOpen(false);
+          toast.info('⬇️ Vuốt xuống - Đóng!', {
+            duration: 1500,
+            description: 'Đã đóng thiệp/quà'
+          });
+        }
       },
-      onRotateDown: () => {
-        setSceneRotation(prev => ({
-          ...prev,
-          x: prev.x + Math.PI / 24  // 15 degrees - nhẹ hơn
-        }));
-        toast.success('⬇️ Xoay xuống', {
-          duration: 1500,
-          description: 'Vuốt tay xuống dưới (nhẹ)'
-        });
-      },
+
+      // Track modal state for backend
+      modalIsOpen: modalOpen,
     },
   });
 

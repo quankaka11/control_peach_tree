@@ -1,28 +1,24 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 
 export interface GestureData {
-  type: 'none' | 'click' | 'drag_start' | 'dragging' | 'drag_end' | 'swipe' | 'open_hand' | 'no_hand';
+  type: 'none' | 'pinch' | 'swipe' | 'no_hand';
   cursor?: {
     x: number;
     y: number;
   };
   direction?: 'left' | 'right' | 'up' | 'down';
-  action?: 'pinch' | 'rotate_left' | 'rotate_right' | 'rotate_up' | 'rotate_down' | 'open_item';
+  action?: 'add_item' | 'rotate_left' | 'rotate_right' | 'open_modal' | 'close_modal';
   timestamp: number;
 }
 
 export interface GestureCallbacks {
   onCursorMove?: (x: number, y: number) => void;
-  onClick?: () => void;
-  onDragStart?: () => void;
-  onDragging?: (x: number, y: number) => void;
-  onDragEnd?: () => void;
-  onRotateLeft?: () => void;
-  onRotateRight?: () => void;
-  onRotateUp?: () => void;
-  onRotateDown?: () => void;
-  onSwipe?: (direction: 'left' | 'right' | 'up' | 'down') => void;
-  onOpenHand?: () => void;
+  onPinch?: () => void;  // Add gift/card
+  onRotateLeft?: () => void;  // Swipe left
+  onRotateRight?: () => void;  // Swipe right
+  onOpenModal?: () => void;  // Swipe up
+  onCloseModal?: () => void;  // Swipe down
+  modalIsOpen?: boolean;  // Track modal state for server
 }
 
 interface UseHandGestureOptions {
@@ -79,47 +75,25 @@ export const useHandGesture = ({
 
           // Handle gestures
           switch (data.type) {
-            case 'click':
-              if (debug) console.log('👆 Click gesture detected');
-              callbacks.onClick?.();
-              break;
-
-            case 'drag_start':
-              if (debug) console.log('✊ Drag start');
-              callbacks.onDragStart?.();
-              break;
-
-            case 'dragging':
-              if (data.cursor) {
-                callbacks.onDragging?.(data.cursor.x, data.cursor.y);
-              }
-              break;
-
-            case 'drag_end':
-              if (debug) console.log('🖐️ Drag end');
-              callbacks.onDragEnd?.();
+            case 'pinch':
+              if (debug) console.log('👌 Pinch gesture detected - Adding item');
+              callbacks.onPinch?.();
               break;
 
             case 'swipe':
               if (data.direction) {
                 if (debug) console.log(`👉 Swipe ${data.direction}`);
-                callbacks.onSwipe?.(data.direction);
 
                 if (data.direction === 'left') {
                   callbacks.onRotateLeft?.();
                 } else if (data.direction === 'right') {
                   callbacks.onRotateRight?.();
                 } else if (data.direction === 'up') {
-                  callbacks.onRotateUp?.();
+                  callbacks.onOpenModal?.();
                 } else if (data.direction === 'down') {
-                  callbacks.onRotateDown?.();
+                  callbacks.onCloseModal?.();
                 }
               }
-              break;
-
-            case 'open_hand':
-              if (debug) console.log('🖐️ Open hand gesture detected');
-              callbacks.onOpenHand?.();
               break;
           }
         } catch (error) {
